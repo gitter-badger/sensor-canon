@@ -1,0 +1,26 @@
+{
+  "name": "sensor-canon",
+  "version": "1.0.0",
+  "description": "Fire a scheduled time series of (johnny-five) sensor data against any RESTful API exposing a POST and a PUT route wired up to MongoDB",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcmunder/sensor-canon.git"
+  },
+  "keywords": [
+    "arduino",
+    "johnny-five",
+    "time-series",
+    "preallocate",
+    "mongodb"
+  ],
+  "author": "matthias munder <matthiasmunder@gmail.com> (https://matthiasmunder.de/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mcmunder/sensor-canon/issues"
+  },
+  "homepage": "https://github.com/mcmunder/sensor-canon#readme"
+}
