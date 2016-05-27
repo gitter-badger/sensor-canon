@@ -1,60 +1,42 @@
-const moment = require('moment')
 const schedule = require('node-schedule')
 const request = require('request')
-const lookups = require('./lookups')
+const mockData = require('./mock-data')
+const date = require('./date')
 
 module.exports =
   class Canon {
-    constructor () {
+    constructor (opt) {
       var self = this
 
-      this.sensors = []
-      this.targetURL = ''
-      this.postFreq = ''
-      this.putFreq = ''
-      this.combinedFreq = ''
-      this.putCounter = 0
-      this.dataArrayLength = 0
-      this.dateStrPost = ''
-      this.cronStringPost = ''
-      this.dateStrPut = ''
-      this.cronStringPut = ''
+      this.opt = opt
 
-      this.reset = function () {
-        this.sensors = []
-        this.targetURL = ''
-        this.postFreq = ''
-        this.putFreq = ''
-        this.combinedFreq = ''
-        this.putCounter = 0
-        this.dataArrayLength = 0
-        this.dateStrPost = ''
-        this.cronStringPost = ''
-        this.dateStrPut = ''
-        this.cronStringPut = ''
+      // accept a single sensor or an array of sensors
+      if (!(typeof opt.sensors === Array)) {
+        this.sensors = [opt.sensors]
       }
 
+      this.sensors = opt.sensors
+      this.targetURL = opt.URL
+      this.putCounter = 0
+      this.postCounter = 0
+      this.cronStrPost = opt.cronStrPost
+      this.cronStrPut = opt.cronStrPut
+
       this.preallocate = function (URL) {
+        this.postCounter++
+
         if (URL) self.targetURL = URL
 
-        // Generate mock data for preallocation
-        var mockArray = new Array(self.dataArrayLength)
-        mockArray.fill({time: NaN, value: NaN})
+        self.sensors.forEach(preallocateCb)
 
-        self.sensors.forEach(prealloCallback)
-
-        function prealloCallback (sensor) {
-          var mockData = {
-            _id: sensor.id + ':' + moment().format(self.dateStrPost),
-            data: mockArray
-          }
-          // request is used to send POST requests to the sensor
-          // API. Connection to mongodb, the create operation is then
-          // handled by the app with mongoose etc...
+        function preallocateCb (sensor) {
+          // Request sends POST requests to the sensor API. Connection to
+          // MongoDB, C(R)U(D) operatiosn are handled by the app with
+          // mongoose etc...
           request({
             url: self.targetURL,
             method: 'POST',
-            json: mockData
+            json: mockData(sensor, self.cronStrPost, self.cronStrPut)
           }, function optionalCallback (err, res) {
             if (err) {
               console.error('POST failed:', err)
@@ -65,22 +47,27 @@ module.exports =
       }
 
       this.fire = function () {
-        // Keep track of number sensor reads
         self.putCounter++
 
-        self.sensors.forEach(forEachCallback)
+        self.sensors.forEach(forEachCb)
 
-        function forEachCallback (sensor) {
+        function forEachCb (sensor) {
           // emit the 'data' event of the sensor only once! The time until a
           // 'data' event is emmited depends on the freq value of the
-          // five.Sensor() instance. Default is 250 ms.
+          // five.Sensor() instance. Default is 25 ms.
           sensor.once('data', fireCallback)
 
-          function fireCallback (data) {
+          function fireCallback () {
+            var data = NaN
+            if (sensor.valueAs) {
+              data = this[sensor.valueAs]
+            } else {
+              data = this.value
+            }
             var sensorData = {
-              _id: sensor.id + ':' + moment().format(self.dateStrPost),
+              _id: sensor.id + ':' + date.post(self.cronStrPost),
               data: {
-                time: moment().format(self.dateStrPut),
+                time: date.put(self.cronStrPut),
                 value: data
               }
             }
@@ -103,25 +90,6 @@ module.exports =
       }
     }
 
-    load (sensorArray, URL, postFreq, putFreq) {
-      this.reset()
-      this.sensors = sensorArray
-      this.targetURL = URL
-
-      this.postFreq = postFreq
-      this.putFreq = putFreq
-      // The length of the data array in the sensor data results
-      // from preallocation and fire Freq, therefor a concatenated
-      // freq string is created and used for the lookup
-      this.combinedFreq = postFreq + putFreq
-
-      this.dataArrayLength = lookups.arrayLength[this.combinedFreq]
-      this.dateStrPost = lookups.datePost[postFreq]
-      this.dateStrPut = lookups.datePut[putFreq]
-      this.cronStringPost = lookups.cronString[postFreq]
-      this.cronStringPut = lookups.cronString[putFreq]
-    }
-
     continuousFire (URL) {
       let self = this
       // If URL is passed as optional argument, set it
@@ -129,12 +97,11 @@ module.exports =
 
       // preallocate (post) once and then according to cron schedule
       this.preallocate()
-      schedule.scheduleJob(this.cronStringPost, function () {
+      schedule.scheduleJob(this.cronStrPost, function () {
         self.preallocate()
       })
       // fire (put) once and then according to cron schedule
-      this.fire()
-      schedule.scheduleJob(this.cronStringPut, function () {
+      schedule.scheduleJob(this.cronStrPut, function () {
         self.fire()
       })
     }
