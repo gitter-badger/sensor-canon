@@ -1,137 +1,125 @@
 # sensor-canon
 
-Fire a scheduled time series of johnny-five sensor data against any RESTful API exposing a POST and a PUT route wired up to MongoDB.
+Fire a scheduled time series of [johnny-five](http://johnny-five.io) sensor data against a RESTful API exposing POST and a PUT endpoints wired up to MongoDB.
 
 ![johnny-fire](/img/sensor-canon.gif)
+
 
 ## Install
 
 ```js
-$ npm install sensor-canon
+$ npm install --save sensor-canon
 ```
 
-## Why this package?
 
-One of the most common use cases for sensors is the collection of time-series of data. MongoDB is an excellent choice for storing such time-series of data  ([see this blog post](http://blog.mongodb.org/post/65517193370/schema-design-for-time-series-data-in-mongodb) and these [talks recorded at MongoDBWorld](https://www.mongodb.com/presentations/mongodb-time-series-data-part-1-setting-stage-sensor-management)).
+## Why this module?
 
-While testing the presented ideas with some [johnny-five](http://johnny-five.io/) sensors, I found that by far the hardest part was to generate a scheduled and synchronous stream of POST requests for the preallocation of correctly shaped mock data as well as a scheduled and synchronous stream of PUT requests for updating the preallocated documents with real sensor data.
+The sensor-canon generates a scheduled time series of johnny-five sensor data in .json format and sends this data to a URL of your choice in the form of a POST or PUT request payload. The idea is that this URL is a POST or PUT endpoint wired up to MongoDB.
 
-That's why I decided to wrap up that code in a single class - `Canon` - and share it as a node module.
+There are currently 2 options of how to send (and store) the data:
 
-If you are interested in a sample application using the sensor-canon have a look at [my blog](http://matthiasmunder.de/2016/05/10/restful-banana/) or my post on [Medium]().
+- Data from each scheduled sensor read can be send as POST request and (on the receiving end) inserted as a separate MongoDB document. This approach is efficient enough for applications with a small number of sensors as well as low insert and query frequencies.
 
-__Disclaimer:__
+- The sensor-canon can also: first send POST requests carrying appropriately shaped placeholder data for pre-allocation to MongoDB and, subsequently, send PUT requests carrying real sensor data for updating the pre-allocated documents. This approach can drastically increases MongoDB performance and allows applications involving thousands of sensors as well as high update and query frequencies. Check out [this post by Sandeep Parikh and Kelly Stirman](http://blog.mongodb.org/post/65517193370/schema-design-for-time-series-data-in-mongodb) and [these talks](https://www.mongodb.com/presentations/mongodb-time-series-data-part-1-setting-stage-sensor-management) to get an example.
 
-I am new to programming and this is my first npm module and one of the first things I dare putting into the wild. Therefore I for sure did stupid things and made silly mistakes. I am here to learn and improve so please tell about it! Just be nice and polite, ok? Thanks!
-
-## API
-
-| Property/ method        |  returns                     |
-| ------------------------|------------------------------|
-| `.targetURL`            | `String`: the target URL     |
-| `.lookups`              | `Object`: the target URL     |
-
+The frequencies of both, pre-allocation (POST) and update (PUT) requests are set using cron expressions. The sensor-canon uses [cron-parser](https://github.com/harrisiirak/cron-parser) and [node-schedule](https://github.com/node-schedule/node-schedule) for generation of correctly shaped pre-allocation data and for scheduling.
 
 
 ## Usage
 
-First require johnny-five and the sensor-canon. Then instantiate a new johnny-five board and a new canon.
+First require johnny-five and the sensor-canon and instantiate a new johnny-five board.
 
 ```js
 const five = require('johnny-five')
 const Canon = require('sensor-canon')
 
 const board = new five.Board()
-const canon = new Canon()
 ```
 
-Then instantiate a single (or a bunch of) [johnny-five sensors](http://johnny-five.io/api/sensor/) as usual. If using more than one sensor, put the sensors into an array. You can pass a single sensor or an array of sensors to the canon's load() method later.
+Next, instantiate a single (or a bunch of) [johnny-five sensors](http://johnny-five.io/api/sensor/) as usual. If using more than one sensor, put the sensors into an array. Here we create a simple photoresistor as an example:
 
 ```js
 board.on('ready', function () {
-  var sensor1 = new five.Sensor({
-    id: 'sensor1',
+  // for this example let's assume it's a photoresistor so the
+  // instance can have a cool name ;-)
+  var photoresistor = new five.Sensor({
+    id: 'photoresistor',
     pin: 'A1'
   })
 
-  var sensor2 = new five.Sensor({
-    id: 'sensor2',
-    pin: 'A2'
-  })
+  // more than one sensor:
+  // var sensor2 = new five.Sensor({
+  //   id: 'sensor2',
+  //   pin: 'A2'
+  // })
+  // var sensorArray = [sensor1, sensor2, ...]
 
-  // etc...
-
-  var sensorArray = [sensor1, sensor2, ...]
+  // new Canon will be created here...
 })
 ```
 
-Johnny five's Sensor class is very generic and many sensors are supported (see list at the bottom of [this page](http://johnny-five.io/api/sensor/). All Sensor instances emit 'data' events at a certain frequency. Do not set this `freq:` property when creating the sensors! Sensors should emit data events at the default frequency (25 ms). The actual frequency of data collection is set (scheduled) with [node-schedule](https://github.com/node-schedule/node-schedule) inside of the canon.
-
-Many other sensors are supported but are represented by different classes with more diverse APIs. All of them (?), however, return the raw data from the sensor as `this.value`. The sensor-canon can handle those as well. The following example of the [Thermometer class](http://johnny-five.io/examples/temperature-htu21d/) will work:
+Now, instantiate an new canon and pass an options object specifying a sensor (or sensor array), a URL, and 1 or 2 cron expressions for setting POST and PUT frequencies. The PUT frequency is optional and should only be set when pre-allocation of placeholder data is desired.
 
 ```js
-var temperature = new five.Thermometer({
-    controller: "HTU21D"
-  })
+var canon = new Canon({
+  sensors: photoresistor,
+  URL: URL_of_your_choice,
+  postFreq: '* * * * *',
+  putFreq: '* * * * * *' // optional; set only when preallocation is desired
+})
 ```
 
-If you want to get more meaningful values from these sensors, add an additional `valusAs:` property to the object that is passed to the constructor. Let's say you want to get the temperature in celsius in the above example, this would look like:
+In this example a POST request with pre-allocation data is send every minute `'* * * * *'` and a PUT request carrying real sensor data is send every second `'* * * * * *'`. Consequently the pre-allocation data in the POST request contains placeholders for 60 datapoints.
+
+For the date of writing of this documentation, the pre-allocation data (POST payload) for this example would have the following structure:
 
 ```js
-var temperature = new five.Thermometer({
-    controller: "HTU21D",
-    valueAs: 'celsius'
-  })
+{
+  _id: 'photoresistor:201606071510',
+  data: [
+  {
+    time: NaN,
+    value: NaN
+  },
+  //... 60 times!
+  ]
+}
 ```
 
-like for example this temperature or example a However, if you want to get a more meaningful number
+The \_id is a compound index of the unique sensor id and a date string specifying the current minute. The data array contains 60 placeholder objects `(time: NaN, value: NaN}` which should be included in the document that gets pre-allocated to MongoDB.
 
-Next, instantiate a new sensor canon as follows:
+Sensor data for updating this document (PUT payload) would be structured like this:
 
 ```js
-var canon = new Canon()
+{
+  _id: 'photoresistor:201606071510',  // used to find the document in MongoDB!
+  data: {
+    time: '20160607151023', // here: with resolution down to the second
+    value: 423 //
+  }
+}
 ```
 
-In principle many different Canon instances can be instantiated - allowing you to fire a different set of sensors against different RESTful API's, with different preallocation and read frequencies and so on...
+__Please note:__ The sensor-canon currently accepts only simple cron expressions with '\*' in each position) when both a POST and a PUT frequency are set. Work on supporting a wider range of cron expressions is in progress. Contributions are very welcome! The full range of cron expressions is supported when POSTing only.
 
-Here we get one canon ready to fire by calling the canon's `load()` method and passing the sensor array, a target URL, a preallocation (POST) frequency and a read (PUT) frequency as parameters. The POST frequency determines how often a new document is __created__ in the MongoDB wired up to the POST route of the target URL. The PUT frequency determines how often this document is __updated__ with real sensor data.
+The canon is now readY to fire - either once ore continuously:
 
 ```js
-canon.load(sensorArray, URL, 'hour', 'minute')
+canon.continuousFire()
+// for testing you can also do:
+// canon.preallocate()
+// canon.fire()
 ```
 
-For simplicity only a limited number of preallocation/read (POST/PUT) frequencies are supported at the moment. Passing any other combination will throw an error! Supported are:
 
-| Preallocation (POST) every:| Read (PUT) every:       |
-| ---------------------------|-------------------------|
-| `'minute'`                 | `'second'`              |
-| `'hour'`                   | `'second'` or `'minute'`|
-| `'day'`                    | `'minute'` or `'hour'`  |
-| `'month'`                  | `'hour'` or `'day'`     |
-| `'year'`                   | `'day'` or `'month'`    |
+## Further reading
 
-You can also use `'s'`, `'m'`, `'H'`, `'D'`, `'M'`, `'Y'` instead of `'second'`, `'minute'`, `'hour'`, `'day'`, `'month'`, `'year'` for convenience.
+To better understand the motivation for writing the sensor-canon, have a look at my [blog post](http://blog.mongodb.org/post/65517193370/schema-design-for-time-series-data-in-mongodb), [this post by Sandeep Parikh and Kelly Stirman](http://blog.mongodb.org/post/65517193370/schema-design-for-time-series-data-in-mongodb) and [these talks](https://www.mongodb.com/presentations/mongodb-time-series-data-part-1-setting-stage-sensor-management)
 
-The canon is now ready to fire and you can be tested:
-
-```js
-// A URL can be passed as an optional parameter
-canon.preallocate(URL)
-canon.fire(URL)
-```
-
-or fired continuously:
-
-```js
-// A URL can be passed as an optional parameter
-canon.continuousFire(URL)
-```
-
-To see the canon in action in a little dashboard app have a look at [this post]((http://matthiasmunder.de/2016/05/10/restful-banana/)).
 
 ## Copyright and license
 
-Copyright 2016 Matthias Munder.
+Copyright 2016 Matthias Munder.  
 Licensed under the [MIT license](./LICENSE).
 
 

@@ -29,10 +29,13 @@
     "lodash": "4.13.1",
     "moment": "2.13.0",
     "node-schedule": "1.1.0",
-    "request": "2.72.0"
+    "request": "2.72.0",
+    "request-promise": "3.0.0",
+    "valid-url": "1.0.9"
   },
   "devDependencies": {
     "chai": "3.5.0",
+    "johnny-five": "0.9.56",
     "mocha": "2.5.2"
   }
 }

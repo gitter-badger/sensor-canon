@@ -1,108 +1,136 @@
 const schedule = require('node-schedule')
-const request = require('request')
-const mockData = require('./mock-data')
+const rp = require('request-promise')
 const date = require('./date')
+const verify = require('./verify')
+const mockData = require('./mock-data')
 
 module.exports =
   class Canon {
     constructor (opt) {
-      var self = this
-
-      this.opt = opt
-
-      // accept a single sensor or an array of sensors
-      if (!(typeof opt.sensors === Array)) {
-        this.sensors = [opt.sensors]
+      /*
+      verify options
+      */
+      try {
+        verify(opt)
+      } catch (err) {
+        console.error(err)
       }
 
-      this.sensors = opt.sensors
-      this.targetURL = opt.URL
+      /*
+      if a single sensor is passed, put it into an array...
+       */
+      if (!Array.isArray(opt.sensors)) {
+        this.sensors = [opt.sensors]
+      } else {
+        this.sensors = opt.sensors
+      }
+
+      /*
+      Construct the rest...
+       */
+      this.targetUrl = opt.targetUrl
+      this.postFreq = opt.postFreq
+      this.putFreq = opt.putFreq
       this.putCounter = 0
       this.postCounter = 0
-      this.cronStrPost = opt.cronStrPost
-      this.cronStrPut = opt.cronStrPut
 
-      this.preallocate = function (URL) {
-        this.postCounter++
-
-        if (URL) self.targetURL = URL
-
-        self.sensors.forEach(preallocateCb)
-
-        function preallocateCb (sensor) {
-          // Request sends POST requests to the sensor API. Connection to
-          // MongoDB, C(R)U(D) operatiosn are handled by the app with
-          // mongoose etc...
-          request({
-            url: self.targetURL,
-            method: 'POST',
-            json: mockData(sensor, self.cronStrPost, self.cronStrPut)
-          }, function optionalCallback (err, res) {
-            if (err) {
-              console.error('POST failed:', err)
-            }
-            console.log('Server responded with:', res.body)
-          })
-        }
-      }
-
-      this.fire = function () {
-        self.putCounter++
-
-        self.sensors.forEach(forEachCb)
-
-        function forEachCb (sensor) {
-          // emit the 'data' event of the sensor only once! The time until a
-          // 'data' event is emmited depends on the freq value of the
-          // five.Sensor() instance. Default is 25 ms.
-          sensor.once('data', fireCallback)
-
-          function fireCallback () {
-            var data = NaN
-            if (sensor.valueAs) {
-              data = this[sensor.valueAs]
-            } else {
-              data = this.value
-            }
-            var sensorData = {
-              _id: sensor.id + ':' + date.post(self.cronStrPost),
-              data: {
-                time: date.put(self.cronStrPut),
-                value: data
-              }
-            }
-
-            // request is used to send PUT requests to the sensor
-            // API. Connection to mongodb, the update operation etc. are then
-            // handled by the app with mongoose etc...
-            request({
-              url: self.targetURL + sensorData._id,
-              method: 'PUT',
-              json: sensorData
-            }, function optionalCallback (err, res) {
-              if (err) {
-                console.error('PUT failed:', err)
-              }
-              console.log('PUT successful!  Server responded with:', res.body)
-            })
-          }
-        }
-      }
+      /*
+      Are POST and PUT frequency set?
+      */
+      this.postAndPut = !!(opt.postFreq && opt.putFreq)
     }
 
-    continuousFire (URL) {
-      let self = this
-      // If URL is passed as optional argument, set it
-      if (URL) this.targetURL = URL
+    preallocate () {
+      this.sensors.forEach((sensor) => {
+        this.postCounter++
 
-      // preallocate (post) once and then according to cron schedule
-      this.preallocate()
-      schedule.scheduleJob(this.cronStrPost, function () {
-        self.preallocate()
+        const options = {
+          method: 'POST',
+          uri: this.targetUrl,
+          body: mockData(sensor, this.postFreq, this.putFreq),
+          json: true // Automatically stringifies the body to JSON
+        }
+
+        rp(options)
+          .then(function (body) {
+            console.log('POST sucessful! Server responsed: ', body)
+          })
+          .catch(function (err) {
+            console.error(err)
+          })
       })
-      // fire (put) once and then according to cron schedule
-      schedule.scheduleJob(this.cronStrPut, function () {
-        self.fire()
+    }
+
+    fire () {
+      this.sensors.forEach((sensor) => {
+        /*
+        emit the 'data' event of the sensor only once! The time until a
+        'data' event is emmited depends on the freq value of the
+        five.Sensor() instance. Default is 25 ms.
+         */
+        sensor.once('data', () => {
+          this.putCounter++
+
+          let requestMethod = ''
+          let requestUrl = ''
+
+          let data = NaN
+          if (sensor.valueAs) {
+            data = sensor[sensor.valueAs]
+          } else {
+            data = sensor.value
+          }
+
+          const sensorData = {
+            _id: sensor.id + ':' + date.post(this.postFreq),
+            data: {
+              time: date.put(this.putFreq),
+              value: data
+            }
+          }
+
+          if (this.postAndPut) {
+            requestMethod = 'PUT'
+            requestUrl = `${this.targetUrl}/${sensorData._id}`
+          } else {
+            requestMethod = 'POST'
+            requestUrl = this.targetUrl
+          }
+
+          const options = {
+            method: requestMethod,
+            uri: requestUrl,
+            body: sensorData,
+            json: true
+          }
+
+          rp(options)
+            .then((body) => {
+              console.log('Fired successfully! Server response: ', body)
+            })
+            .catch(function (err) {
+              console.error(err)
+            })
+        })
       })
+    }
+
+    continuousFire () {
+      if (this.postAndPut) {
+        // preallocate (post) once and then according to cron schedule
+        this.preallocate()
+        schedule.scheduleJob(this.postFreq, () => {
+          this.preallocate()
+        })
+        // fire (put) according to cron schedule
+        schedule.scheduleJob(this.putFreq, () => {
+          this.fire()
+        })
+      } else {
+        // fire (put) according to cron schedule
+        schedule.scheduleJob(this.putFreq, () => {
+          this.fire()
+        })
+      }
     }
 }

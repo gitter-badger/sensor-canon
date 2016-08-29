@@ -9,14 +9,14 @@ var date = [
   'YYYYMMDDHHmmss'
 ]
 
-function post (cronStrPost) {
-  var lenCronPost = cronStrPost.split(' ').length
-  return moment().format(date[lenCronPost - 1])
+const post = (postFreq) => {
+  let postFreqLength = postFreq.split(' ').length
+  return moment().format(date[postFreqLength - 1])
 }
 
-function put (cronStrPut) {
-  var lenCronPut = cronStrPut.split(' ').length
-  return moment().format(date[lenCronPut - 1])
+const put = (putFreq) => {
+  let putFreqLength = putFreq.split(' ').length
+  return moment().format(date[putFreqLength - 1])
 }
 
 module.exports.post = post
