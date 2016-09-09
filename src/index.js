@@ -1,8 +1,8 @@
 const schedule = require('node-schedule')
 const rp = require('request-promise')
-const date = require('./date')
-const verify = require('./verify')
-const mockData = require('./mock-data')
+const date = require('./helpers/date')
+const verify = require('./helpers/verify')
+const mockData = require('./helpers/mock-data')
 
 module.exports =
   class Canon {

@@ -1,6 +1,9 @@
 # sensor-canon
 
-Fire a scheduled time series of [johnny-five](http://johnny-five.io) sensor data against a RESTful API exposing POST and a PUT endpoints wired up to MongoDB.
+[![npm](https://img.shields.io/npm/dm/localeval.svg?maxAge=2592000)](https://www.npmjs.com/package/sensor-canon)
+[![npm](https://img.shields.io/npm/dt/express.svg?maxAge=2592000)](https://www.npmjs.com/package/sensor-canon)
+
+Fire a scheduled time series of (johnny-five) sensor data against any RESTful API.
 
 ![johnny-fire](/img/sensor-canon.gif)
 
@@ -14,7 +17,7 @@ $ npm install --save sensor-canon
 
 ## Why this module?
 
-The sensor-canon generates a scheduled time series of johnny-five sensor data in .json format and sends this data to a URL of your choice in the form of a POST or PUT request payload. The idea is that this URL is a POST or PUT endpoint wired up to MongoDB.
+Thanks to fantastic [johnny-five](http://johnny-five.io), collecting sensor data with JavaScript/Node.js is a piece of cake. However, I found myself struggling to turn sensor data into a scheduled time series for efficient storage in a database. The sensor-canon wraps this functionality in a single class. It generates a scheduled time series of POST and/or PUT requests carrying the sensor data as payload in .json format . The idea is to fire these requests against POST/PUT endpoints wired up to a object-oriented database like MongoDB.
 
 There are currently 2 options of how to send (and store) the data:
 
@@ -102,7 +105,7 @@ Sensor data for updating this document (PUT payload) would be structured like th
 
 __Please note:__ The sensor-canon currently accepts only simple cron expressions with '\*' in each position) when both a POST and a PUT frequency are set. Work on supporting a wider range of cron expressions is in progress. Contributions are very welcome! The full range of cron expressions is supported when POSTing only.
 
-The canon is now readY to fire - either once ore continuously:
+The canon is now ready to fire - either once ore continuously:
 
 ```js
 canon.continuousFire()
