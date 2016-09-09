@@ -1,7 +1,6 @@
 # sensor-canon
 
-[![npm](https://img.shields.io/npm/dm/localeval.svg?maxAge=2592000)](https://www.npmjs.com/package/sensor-canon)
-[![npm](https://img.shields.io/npm/dt/express.svg?maxAge=2592000)](https://www.npmjs.com/package/sensor-canon)
+[![NPM](https://nodei.co/npm/sensor-canon.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/sensor-canon/)
 
 Fire a scheduled time series of (johnny-five) sensor data against any RESTful API.
 
