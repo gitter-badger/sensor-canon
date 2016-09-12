@@ -1,6 +1,6 @@
 {
   "name": "sensor-canon",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Fire a scheduled time series of (johnny-five) sensor data against any RESTful API.",
   "main": "src/index.js",
   "scripts": {
