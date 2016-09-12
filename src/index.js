@@ -26,7 +26,7 @@ module.exports =
       }
 
       /*
-      Construct the rest...
+      Assign other properties
        */
       this.targetUrl = opt.targetUrl
       this.postFreq = opt.postFreq
@@ -41,24 +41,28 @@ module.exports =
     }
 
     preallocate () {
-      this.sensors.forEach((sensor) => {
-        this.postCounter++
+      if (!this.postAndPut) {
+        return console.log(`Preallocation only makes sense when postFreq AND putFreq are set!`)
+      } else {
+        this.sensors.forEach((sensor) => {
+          this.postCounter++
 
-        const options = {
-          method: 'POST',
-          uri: this.targetUrl,
-          body: mockData(sensor, this.postFreq, this.putFreq),
-          json: true // Automatically stringifies the body to JSON
-        }
+          const options = {
+            method: 'POST',
+            uri: this.targetUrl,
+            body: mockData(sensor, this.postFreq, this.putFreq),
+            json: true // Automatically stringifies the body to JSON
+          }
 
-        rp(options)
-          .then(function (body) {
-            console.log('POST sucessful! Server responsed: ', body)
-          })
-          .catch(function (err) {
-            console.error(err)
-          })
-      })
+          rp(options)
+            .then(function (body) {
+              console.log('POST sucessful! Server responsed: ', body)
+            })
+            .catch(function (err) {
+              console.error(err)
+            })
+        })
+      }
     }
 
     fire () {
@@ -106,7 +110,7 @@ module.exports =
 
           rp(options)
             .then((body) => {
-              console.log('Fired successfully! Server response: ', body)
+              console.log('Strike! Server response: ', body)
             })
             .catch(function (err) {
               console.error(err)

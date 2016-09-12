@@ -26,10 +26,8 @@
   "homepage": "https://github.com/mcmunder/sensor-canon#readme",
   "dependencies": {
     "cron-parser": "2.0.3",
-    "lodash": "4.13.1",
     "moment": "2.13.0",
     "node-schedule": "1.1.0",
-    "request": "2.72.0",
     "request-promise": "3.0.0",
     "valid-url": "1.0.9"
   },
