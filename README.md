@@ -59,10 +59,10 @@ board.on('ready', function () {
   })
 
   // The canon is now ready to fire:
-  SensorCanon.continuousFire()
+  sensorCanon.continuousFire()
   // for testing you can also do:
-  // canon.preallocate()
-  // canon.fire()
+  // sensorCanon.preallocate()
+  // sensorCanon.fire()
 })
 ```
 

@@ -56,7 +56,7 @@ module.exports =
 
           rp(options)
             .then(function (body) {
-              console.log('POST sucessful! Server responsed: ', body)
+              console.log('POST sucessful! Server response: ', body)
             })
             .catch(function (err) {
               console.error(err)
