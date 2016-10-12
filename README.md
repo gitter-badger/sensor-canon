@@ -1,5 +1,7 @@
 # sensor-canon
 
+[![Join the chat at https://gitter.im/sensor-canon/Lobby](https://badges.gitter.im/sensor-canon/Lobby.svg)](https://gitter.im/sensor-canon/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Fire a scheduled time series of (johnny-five) sensor data against any RESTful API.
 
 ![johnny-fire](/img/sensor-canon.gif)
